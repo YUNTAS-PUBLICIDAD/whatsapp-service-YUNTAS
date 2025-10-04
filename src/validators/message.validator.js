@@ -186,7 +186,7 @@ export const validateSendMessageReject = [
 
 export const validateSendProductInfo = [
   // Validación de teléfono
-  body('telefono')
+  body('phone')
     .isString()
     .notEmpty()
     .withMessage('El número de teléfono es requerido')
@@ -194,7 +194,7 @@ export const validateSendProductInfo = [
     .withMessage('El número de teléfono debe contener solo dígitos, espacios, guiones, paréntesis y signo +'),
 
   // Validación de correo
-  body('correo')
+  body('email')
     .isString()
     .notEmpty()
     .withMessage('El correo electrónico es requerido')

@@ -596,14 +596,14 @@ export async function sendMessageReject(req, res) {
 
 export async function sendProductInfo(req, res) {
   try {
-    const { nombreProducto, descripcion, correo, phone, imageData } = req.body;
+    const { productName, description, email, phone, imageData } = req.body;
 
     // Validaciones adicionales
-    if (!nombreProducto || !descripcion || !correo || !phone || !imageData) {
+    if (!productName || !description || !email || !phone || !imageData) {
       return res.status(400).json({
         success: false,
         message: "Faltan campos requeridos",
-        required: ["nombreProducto", "descripcion", "correo", "phone", "imageData"],
+        required: ["productName", "description", "email", "phone", "imageData"],
       });
     }
 
@@ -617,9 +617,9 @@ export async function sendProductInfo(req, res) {
     }
 
     const result = await whatsappService.sendProductInfo({
-      nombreProducto,
-      descripcion,
-      correo,
+      productName,
+      description,
+      email,
       phone,
       imageData,
     });

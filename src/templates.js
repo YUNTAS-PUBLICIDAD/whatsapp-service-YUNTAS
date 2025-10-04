@@ -117,31 +117,31 @@ ${comentario ? `💬 Comentario del administrador:
 
 export function getProductDetailsTemplate(params = {}) {
   const {
-    nombreProducto = '',
-    descripcion = '',
-    correo = '',
+    productName = '',
+    description = '',
+    email = '',
   } = params;
 
-  return `📢 **Bienvenido a Yuntas Publicidad** 📢
+  return `📢 Bienvenido a Yuntas Publicidad 📢
 
-    Gracias por su interés en nuestros productos. A continuación, le proporcionamos los detalles del producto que ha consultado:
+Gracias por su interés en nuestros productos. A continuación, le proporcionamos los detalles del producto que ha consultado:
 
-    📝 **Producto Consultado:**
-      • **Nombre del Producto:** ${nombreProducto}  
-      • **Descripción:** ${descripcion}  
+📝 Producto Consultado:
+    • Nombre del Producto: ${productName}  
+    • Descripción: ${description}  
 
-    📅 **Fecha y Hora de Consulta:**  
-      • **Fecha:** ${new Date().toLocaleDateString('es-ES')}  
-      • **Hora:** ${new Date().toLocaleTimeString('es-ES')}  
+📅 Fecha y Hora de Consulta:  
+    • Fecha: ${new Date().toLocaleDateString('es-ES')}  
+    • Hora: ${new Date().toLocaleTimeString('es-ES')}  
 
-    📧 **Información Adicional:**  
-    Le informamos que en breve recibirá un correo electrónico a ${correo} con más detalles sobre el producto consultado. Le recomendamos revisar su bandeja de entrada.
+📧 Información Adicional:  
+Le informamos que en breve recibirá un correo electrónico a ${email} con más detalles sobre el producto consultado. Le recomendamos revisar su bandeja de entrada.
 
-    Si tiene alguna otra consulta o desea más información, no dude en contactarnos.
+Si tiene alguna otra consulta o desea más información, no dude en contactarnos.
 
-    ¡Gracias por elegirnos!
+¡Gracias por elegirnos!
 
-    Atentamente,  
-    **Yuntas Publicidad**  
+Atentamente,  
+Yuntas Publicidad  
   `;
 }

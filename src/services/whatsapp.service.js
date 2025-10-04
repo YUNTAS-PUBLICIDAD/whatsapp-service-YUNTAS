@@ -802,7 +802,7 @@ export default {
     }
   },
 
-  async sendProductInfo({ nombreProducto, descripcion, correo, phone, imageData }) {
+  async sendProductInfo({ productName, description, email, phone, imageData }) {
     if (!connectionState.socket?.user) {
       throw new Error('No conectado a WhatsApp. Por favor, escanea el código QR primero.');
     }
@@ -820,9 +820,9 @@ export default {
     }
 
     const messageText = getProductDetailsTemplate({
-      nombreProducto,
-      descripcion,
-      correo,
+      productName,
+      description,
+      email,
     });
 
     if (!messageText) {
@@ -847,9 +847,9 @@ export default {
     try {
       const captionText = messageText || 'Imagen enviada';
       logger.info('Enviando mensaje con imagen WhatsApp', {
-        nombreProducto,
-        descripcion,
-        correo,
+        productName,
+        description,
+        email,
         phone: formattedPhone,
         imageSize: imageBuffer.length,
         captionLength: captionText.length

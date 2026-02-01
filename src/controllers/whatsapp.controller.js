@@ -218,7 +218,7 @@ export async function sendTextMessage(req, res) {
                 message: 'El formato del número de teléfono no es válido'
             });
         }
-        
+
         // Validar mensaje
         if (!message || message.trim().length === 0) {
             return res.status(400).json({
@@ -268,9 +268,16 @@ export async function resetSession(req, res) {
         });
     } catch (error) {
         logger.error('Error al resetear la sesión de WhatsApp', { error: error.message });
-        res.status(500).json({
-            success: false,
-            message: 'Error al resetear la sesión'
-        });
+        if (whatsappService.sock) {
+            res.json({
+                success: true,
+                message: 'Sesión reiniciada con advertencias. Generando QR...',
+            });
+        } else {
+            res.status(500).json({
+                success: false,
+                message: 'Error al reiniciar sesión',
+            });
+        }
     }
 }

@@ -220,7 +220,7 @@ class WhatsAppService {
     }
 
     /**
-     * Envía una imagen con caption (texto)
+     * Envía una imagen con caption (texto)   
      */
     async sendTextImage(jid, imageBuffer, caption = '') {
         if (!this.isReady || !this.sock) {

@@ -265,21 +265,38 @@ class WhatsAppService {
                 this.sock = null;
             }
 
-            if (fs.existsSync(WHATSAPP_CONFIG.authPath)) {
-                fs.rmSync(WHATSAPP_CONFIG.authPath, { recursive: true, force: true });
-            }
-
+            // Limpiar estado
             this.currentQR = null;
             this.isReady = false;
+            clearTimeout(this.qrTimeout);
 
             this.emitQRUpdate({
                 connectionStatus: 'disconnected',
                 qrData: null
             });
 
+            // Esperar antes de eliminar archivos
+            await new Promise(resolve => setTimeout(resolve, 1000));
+
+            if (fs.existsSync(WHATSAPP_CONFIG.authPath)) {
+                try {
+                    fs.rmSync(WHATSAPP_CONFIG.authPath, { recursive: true, force: true });
+                } catch (error) {
+                    logger.warn('Error al eliminar auth_info, reintentando...', { error: error.message });
+                    await new Promise(resolve => setTimeout(resolve, 2000));
+                    fs.rmSync(WHATSAPP_CONFIG.authPath, { recursive: true, force: true });
+                }
+            }
+
             this.isInitializing = false;
 
-            logger.info('Sesión reseteada correctamente');
+            logger.info('Sesión reseteada correctamente, reinicializando...');
+
+            // Esperar un poco antes de reinicializar
+            await new Promise(resolve => setTimeout(resolve, 1000));
+
+            await this.initialize();
+
             return true;
         } catch (error) {
             this.isInitializing = false;

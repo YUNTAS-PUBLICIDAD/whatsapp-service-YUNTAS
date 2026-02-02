@@ -126,6 +126,25 @@ class WhatsAppService {
             } else {
                 logger.info('Sesión cerrada por el usuario');
                 this.sock = null;
+
+                if (fs.existsSync(WHATSAPP_CONFIG.authPath)) {
+                    try {
+                        const files = fs.readdirSync(WHATSAPP_CONFIG.authPath);
+                        for (const file of files) {
+                            const filePath = `${WHATSAPP_CONFIG.authPath}/${file}`;
+                            fs.rmSync(filePath, { recursive: true, force: true });
+                        }
+                    } catch (error) {
+                        logger.warn('Error al eliminar contenido de auth_info, reintentando...', { error: error.message });
+                        await new Promise(resolve => setTimeout(resolve, 1000));
+
+                        const files = fs.readdirSync(WHATSAPP_CONFIG.authPath);
+                        for (const file of files) {
+                            const filePath = `${WHATSAPP_CONFIG.authPath}/${file}`;
+                            fs.rmSync(filePath, { recursive: true, force: true });
+                        }
+                    }
+                }
             }
         } else if (connection === 'open') {
             logger.info('Cliente de WhatsApp listo');
@@ -289,6 +308,8 @@ class WhatsAppService {
             }
 
             this.isInitializing = false;
+
+            logger.info('Sesión reseteada exitosamente');
 
             return true;
         } catch (error) {

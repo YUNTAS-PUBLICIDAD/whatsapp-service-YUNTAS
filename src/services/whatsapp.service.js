@@ -10,6 +10,21 @@ import pino from 'pino';
 import { Boom } from '@hapi/boom';
 import logger from './logger.service.js';
 import { WHATSAPP_CONFIG } from '../config/constants.js';
+import { count } from 'console';
+
+const extractMessage = (msg) => {
+  if(!msg.message) return null;
+  const m = msg.message;
+  if(m.conversation) return m.conversation;
+  if(m.extendedTextMessage?.text) return m.extendedTextMessage.text;
+  if(m.ephemeralMessage?.message){
+    return extractMessage({message: m.ephemeralMessage.message})
+  }
+  if(m.viewOnceMessage?.message){
+    return extractMessage({message: m.viewOnceMessage.message})
+  }
+  return null;
+}
 
 class WhatsAppService {
     constructor() {
@@ -41,7 +56,7 @@ class WhatsAppService {
      * Inicializa el cliente de WhatsApp
      */
     async initialize() {
-        if (this.sock) {
+        if (this.sock || this.isInitializing) {
             logger.warn('Cliente de WhatsApp ya existe, cancelando inicialización');
             return;
         }
@@ -60,7 +75,7 @@ class WhatsAppService {
 
             this.sock = makeWASocket({ // socket de WhatsApp
                 version,
-                logger: pino({ level: 'silent' }),
+                logger: pino({ level: 'info' }),
                 printQRInTerminal: false,
                 auth: {
                     creds: state.creds,
@@ -71,6 +86,77 @@ class WhatsAppService {
                 syncFullHistory: false,
                 markOnlineOnConnect: false
             });
+
+            this.sock.ev.on('messages.upsert', async ({messages, type}) => {
+              if(type !== 'notify') return;
+              console.log('EVENT TYPE:', type);
+
+              for(const msg of messages){
+                try{
+                  // Ignorar mensajes propios
+                  // if(msg.key.fromMe) continue;
+
+                  const rawJid = msg.key.remoteJid;
+                  const participant = msg.key.participant;
+                  const isFromMe = msg.key.fromMe;
+
+
+                  // tu número (clave para dev)
+                  const myNumber = this.sock?.user?.id?.split(':')[0] || null;
+
+                  let realJid = rawJid;
+                  // const realJid = rawJid.includes('@lid') ? msg.message?.extendedTextMessage?.contextInfo.participant : rawJid;
+                  // const jid = msg.key.remoteJid;
+                  // const realJid = msg.key.remoteJid.includes('@lid') ? msg.message?.extendedTextMessage?.contextInfo.participant : msg.key.remoteJid;
+
+
+                  // === CASO LID ===
+                  if(rawJid?.includes('@lid')){
+                    const possibleJid = participant || msg.message?.extendedTextMessage?.contextInfo?.participant;
+
+                    // Caso 1: se puede resolver
+                    if(possibleJid && !possibleJid.includes('@lid')){
+                      realJid = possibleJid;
+                    }
+                    // Caso 2: eres tú mismo (DEV)
+                    else if(isFromMe && myNumber){
+                      logger.warn('LID propio -> usando myNumber (modo dev)');
+                      realJid = `${myNumber}@s.whatsapp.net`;
+                  }
+                  // Caso 3: basura
+                  else {
+                      logger.warn('Ignorando mensaje LID sin número válido');
+                      continue;
+                    }
+                  }
+
+                  // === EXTRAER MENSAJE ===
+                  const messageText = extractMessage(msg);
+
+                  if(!messageText || !realJid) continue;
+
+                  // === VALIDAR JID ===
+                 if(!realJid.endsWith('@s.whatsapp.net')){
+                   logger.warn('JID inválido para backend', realJid);
+                   continue;
+                 }
+                 logger.info('INCOMING MESSAGE', {
+                   rawJid,
+                   participant,
+                   realJid,
+                   messageText
+                 });
+
+                  // Enviar al backend (laravel)
+                 // await  this.forwardToBackend(jid, messageText);
+                 await this.forwardToBackend(realJid, messageText);
+                }catch (error){
+                  logger.error('Error procesando mensaje entrantes', {
+                    error: error.message
+                  });
+                }
+              }
+            })
 
             // se manejan las actualizaciones de conexión
             this.sock.ev.on('connection.update', async (update) => {
@@ -89,6 +175,86 @@ class WhatsAppService {
         }
     }
 
+    async forwardToBackend(jid, message){
+      const phone = jid.split('@')[0];
+
+      logger.info('SENDING TO BACKEND', {
+        jid,
+        phone,
+        message
+      });
+     try{
+       const response = await fetch('http://localhost:8000/api/chatbot/whatsapp', {
+         method: 'POST',
+         'headers': {
+           'Content-Type': 'application/json'
+         },
+         body: JSON.stringify({
+           // phone: jid,
+           phone,
+           message
+         })
+       });
+       // const data = await response.json();
+       const text = await response.text();
+       let data;
+       try{
+        data = JSON.parse(text);
+       }catch {
+         logger.error('Respuesta no es JSON', {text: text.slice(0, 200)});
+         return;
+       }
+       logger.info('BACKEND RESPONSE', {
+         status: response.status,
+         data
+       });
+       if(data.reply){
+         await this.handleBotResponse(jid, data.reply)
+       }
+     } catch(error){
+       // logger.error('Error enviando a backend', {
+       //   error: error.message
+       // });
+       logger.error('SEND MESSAGE ERROR', {
+         jid,
+         error: error.message,
+         stack: error.state
+       });
+     }
+    }
+    async handleBotResponse(jid, data){
+        const {text, metadata} = data;
+
+        logger.info('SENDING TO WHATSAPP', {
+          jid,
+          text,
+          metadata
+        });
+
+        if(text){
+          await this.sendMessage(jid, text);
+        }
+
+        if(!metadata) return;
+
+        if(metadata.type === 'products'){
+            for(const product of metadata.products){
+              if(product.image){
+                await this.sendTextImage(
+                  jid,
+                  product.image,
+                  `${product.name}\nS/ ${product.price}`
+                );
+              } else {
+                await this.sendMessage(
+                  jid,
+                  `${product.name}\nS/ ${product.price}`
+                );
+              }
+            }
+          }
+
+      }
     /**
      * Maneja actualizaciones de conexión
      */
@@ -121,7 +287,14 @@ class WhatsAppService {
 
             if (shouldReconnect) {
                 logger.info('Reconectando...');
-                this.sock = null;
+                // this.sock = null;
+                if(this.sock) {
+                 try{
+                   this.sock.ev.removeAllListeners();
+                   this.sock.ws?.close();
+                 } catch(e){}
+                }
+                this.sock = null
                 setTimeout(() => this.initialize(), 3000);
             } else {
                 logger.info('Sesión cerrada por el usuario');
@@ -239,7 +412,7 @@ class WhatsAppService {
     }
 
     /**
-     * Envía una imagen con caption (texto)   
+     * Envía una imagen con caption (texto)
      */
     async sendTextImage(jid, imageBuffer, caption = '') {
         if (!this.isReady || !this.sock) {
@@ -333,7 +506,8 @@ class WhatsAppService {
     async destroy() {
         if (this.sock) {
             this.sock.ev.removeAllListeners();
-            await this.sock.logout();
+            // await this.sock.logout();
+            this.sock.ws?.close(); // Solo cerrar conexión
             this.sock = null;
         }
         this.isReady = false;

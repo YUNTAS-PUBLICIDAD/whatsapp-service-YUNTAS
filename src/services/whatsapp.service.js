@@ -33,6 +33,7 @@ class WhatsAppService {
         this.isInitializing = false;
         this.qrTimeout = null;
         this.eventEmitter = null;
+        this.processedMessages = new Set();
     }
 
     /**
@@ -92,6 +93,22 @@ class WhatsAppService {
 
               for(const msg of messages){
                 try{
+                  logger.info('MESSAGE ID', {id: msg.key.id});
+
+                 const messageId = msg.key.id;
+                  // Ya procesado -> ignorar
+                  if(this.processedMessages.has(messageId)){
+                    logger.warn('Mensaje duplicado ignorado', {messageId})
+                    continue;
+                  }
+
+                  // Marcar como procesado
+                  this.processedMessages.add(messageId);
+
+                  // Limpiar memoria
+                  setTimeout(() => {
+                    this.processedMessages.delete(messageId);
+                  }, 60 * 1000); // 1min
                   // Ignorar mensajes propios
                   // if(msg.key.fromMe) continue;
                   if(!IS_DEV && msg.key.fromMe){
@@ -234,6 +251,12 @@ class WhatsAppService {
         });
 
         if(text){
+          // Simular escribiendo
+          await this.sock.sendPresenceUpdate('composing', jid);
+
+          const typingTime = Math.min(3000, Math.max(800, text.length * 40));
+          await new Promise(res => setTimeout(res, typingTime));
+          await this.sock.sendPresenceUpdate('paused', jid);
           await this.sendMessage(jid, text);
         }
 
@@ -241,6 +264,9 @@ class WhatsAppService {
 
         if(metadata.type === 'products'){
             for(const product of metadata.products){
+              await this.sock.sendPresenceUpdate('composing', jid);
+              await new Promise(res => setTimeout(res, 1200));
+              await this.sock.sendPresenceUpdate('paused', jid);
               if(product.image){
                 await this.sendTextImage(
                   jid,

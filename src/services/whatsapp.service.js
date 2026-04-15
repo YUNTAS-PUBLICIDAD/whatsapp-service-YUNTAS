@@ -9,8 +9,7 @@ import fs from 'fs';
 import pino from 'pino';
 import { Boom } from '@hapi/boom';
 import logger from './logger.service.js';
-import { WHATSAPP_CONFIG } from '../config/constants.js';
-import { count } from 'console';
+import { API_URL, IS_DEV, WHATSAPP_CONFIG } from '../config/constants.js';
 
 const extractMessage = (msg) => {
   if(!msg.message) return null;
@@ -34,6 +33,7 @@ class WhatsAppService {
         this.isInitializing = false;
         this.qrTimeout = null;
         this.eventEmitter = null;
+        this.processedMessages = new Set();
     }
 
     /**
@@ -89,12 +89,31 @@ class WhatsAppService {
 
             this.sock.ev.on('messages.upsert', async ({messages, type}) => {
               if(type !== 'notify') return;
-              console.log('EVENT TYPE:', type);
+              logger.debug('EVENT TYPE:', type);
 
               for(const msg of messages){
                 try{
+                  logger.info('MESSAGE ID', {id: msg.key.id});
+
+                 const messageId = msg.key.id;
+                  // Ya procesado -> ignorar
+                  if(this.processedMessages.has(messageId)){
+                    logger.warn('Mensaje duplicado ignorado', {messageId})
+                    continue;
+                  }
+
+                  // Marcar como procesado
+                  this.processedMessages.add(messageId);
+
+                  // Limpiar memoria
+                  setTimeout(() => {
+                    this.processedMessages.delete(messageId);
+                  }, 60 * 1000); // 1min
                   // Ignorar mensajes propios
                   // if(msg.key.fromMe) continue;
+                  if(!IS_DEV && msg.key.fromMe){
+                    continue;
+                  }
 
                   const rawJid = msg.key.remoteJid;
                   const participant = msg.key.participant;
@@ -119,7 +138,7 @@ class WhatsAppService {
                       realJid = possibleJid;
                     }
                     // Caso 2: eres tú mismo (DEV)
-                    else if(isFromMe && myNumber){
+                    else if( IS_DEV && isFromMe && myNumber){
                       logger.warn('LID propio -> usando myNumber (modo dev)');
                       realJid = `${myNumber}@s.whatsapp.net`;
                   }
@@ -184,7 +203,7 @@ class WhatsAppService {
         message
       });
      try{
-       const response = await fetch('http://localhost:8000/api/chatbot/whatsapp', {
+       const response = await fetch(API_URL, {
          method: 'POST',
          'headers': {
            'Content-Type': 'application/json'
@@ -232,6 +251,12 @@ class WhatsAppService {
         });
 
         if(text){
+          // Simular escribiendo
+          await this.sock.sendPresenceUpdate('composing', jid);
+
+          const typingTime = Math.min(3000, Math.max(800, text.length * 40));
+          await new Promise(res => setTimeout(res, typingTime));
+          await this.sock.sendPresenceUpdate('paused', jid);
           await this.sendMessage(jid, text);
         }
 
@@ -239,6 +264,9 @@ class WhatsAppService {
 
         if(metadata.type === 'products'){
             for(const product of metadata.products){
+              await this.sock.sendPresenceUpdate('composing', jid);
+              await new Promise(res => setTimeout(res, 1200));
+              await this.sock.sendPresenceUpdate('paused', jid);
               if(product.image){
                 await this.sendTextImage(
                   jid,

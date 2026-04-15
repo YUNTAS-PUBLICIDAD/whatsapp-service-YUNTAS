@@ -1,0 +1,11 @@
+services:
+   whatsapp:
+      build: .
+      ports:
+         - "3001:3001"
+      env_file:
+         - .env.production
+      volumes:
+         - ./auth_info:/app/auth_info
+         - ./logs:/app/logs
+      restart: always

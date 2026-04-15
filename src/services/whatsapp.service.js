@@ -9,8 +9,7 @@ import fs from 'fs';
 import pino from 'pino';
 import { Boom } from '@hapi/boom';
 import logger from './logger.service.js';
-import { WHATSAPP_CONFIG } from '../config/constants.js';
-import { count } from 'console';
+import { API_URL, IS_DEV, WHATSAPP_CONFIG } from '../config/constants.js';
 
 const extractMessage = (msg) => {
   if(!msg.message) return null;
@@ -89,12 +88,15 @@ class WhatsAppService {
 
             this.sock.ev.on('messages.upsert', async ({messages, type}) => {
               if(type !== 'notify') return;
-              console.log('EVENT TYPE:', type);
+              logger.debug('EVENT TYPE:', type);
 
               for(const msg of messages){
                 try{
                   // Ignorar mensajes propios
                   // if(msg.key.fromMe) continue;
+                  if(!IS_DEV && msg.key.fromMe){
+                    continue;
+                  }
 
                   const rawJid = msg.key.remoteJid;
                   const participant = msg.key.participant;
@@ -119,7 +121,7 @@ class WhatsAppService {
                       realJid = possibleJid;
                     }
                     // Caso 2: eres tú mismo (DEV)
-                    else if(isFromMe && myNumber){
+                    else if( IS_DEV && isFromMe && myNumber){
                       logger.warn('LID propio -> usando myNumber (modo dev)');
                       realJid = `${myNumber}@s.whatsapp.net`;
                   }
@@ -184,7 +186,7 @@ class WhatsAppService {
         message
       });
      try{
-       const response = await fetch('http://localhost:8000/api/chatbot/whatsapp', {
+       const response = await fetch(API_URL, {
          method: 'POST',
          'headers': {
            'Content-Type': 'application/json'

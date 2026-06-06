@@ -10,6 +10,7 @@ import pino from 'pino';
 import { Boom } from '@hapi/boom';
 import logger from './logger.service.js';
 import { API_URL, IS_DEV, WHATSAPP_CONFIG } from '../config/constants.js';
+import sharp from 'sharp';
 
 const extractMessage = (msg) => {
   if(!msg.message) return null;
@@ -448,8 +449,19 @@ class WhatsAppService {
         }
 
         try {
+            let processedBuffer = imageBuffer;
+            try {
+                const metadata = await sharp(imageBuffer).metadata();
+                if (metadata.format === 'webp') {
+                    logger.info('Convertiendo imagen WebP a JPEG para compatibilidad con WhatsApp');
+                    processedBuffer = await sharp(imageBuffer).jpeg().toBuffer();
+                }
+            } catch (sharpError) {
+                logger.warn('Error al verificar/convertir formato de imagen con sharp', { error: sharpError.message });
+            }
+
             const message = {
-                image: imageBuffer,
+                image: processedBuffer,
                 caption: caption || undefined
             };
 

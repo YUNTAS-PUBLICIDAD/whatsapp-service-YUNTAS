@@ -9,10 +9,10 @@ import fs from 'fs';
 import pino from 'pino';
 import { Boom } from '@hapi/boom';
 import logger from './logger.service.js';
-import { API_URL, IS_DEV, WHATSAPP_CONFIG } from '../config/constants.js';
+import { WHATSAPP_CONFIG } from '../config/constants.js';
 import sharp from 'sharp';
 
-const extractMessage = (msg) => {
+/* const extractMessage = (msg) => {
   if(!msg.message) return null;
   const m = msg.message;
   if(m.conversation) return m.conversation;
@@ -24,7 +24,7 @@ const extractMessage = (msg) => {
     return extractMessage({message: m.viewOnceMessage.message})
   }
   return null;
-}
+} */
 
 class WhatsAppService {
     constructor() {
@@ -88,7 +88,7 @@ class WhatsAppService {
                 markOnlineOnConnect: false
             });
 
-            this.sock.ev.on('messages.upsert', async ({messages, type}) => {
+            /* this.sock.ev.on('messages.upsert', async ({messages, type}) => {
               if(type !== 'notify') return;
               logger.debug('EVENT TYPE:', type);
 
@@ -176,7 +176,7 @@ class WhatsAppService {
                   });
                 }
               }
-            })
+            }) */
 
             // se manejan las actualizaciones de conexión
             this.sock.ev.on('connection.update', async (update) => {
@@ -195,7 +195,7 @@ class WhatsAppService {
         }
     }
 
-    async forwardToBackend(jid, message){
+    /* async forwardToBackend(jid, message){
       const phone = jid.split('@')[0];
 
       logger.info('SENDING TO BACKEND', {
@@ -241,8 +241,8 @@ class WhatsAppService {
          stack: error.state
        });
      }
-    }
-    async handleBotResponse(jid, data){
+    } */
+    /* async handleBotResponse(jid, data){
         const {text, metadata} = data;
 
         logger.info('SENDING TO WHATSAPP', {
@@ -283,7 +283,7 @@ class WhatsAppService {
             }
           }
 
-      }
+      } */
     /**
      * Maneja actualizaciones de conexión
      */

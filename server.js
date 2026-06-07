@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import http from 'http';
@@ -83,6 +84,12 @@ whatsappService.setEventEmitter(io);
 server.on('error', (error) => {
 	logger.error('Error en el servidor HTTP', { error: error.message });
 });
+
+/* logger.info('CONFIG LOADED', {
+  env: process.env.NODE_ENV,
+  port: PORT,
+  apiUrl: process.env.API_URL
+}); */
 
 // Iniciar servidor
 server.listen(PORT, () => {

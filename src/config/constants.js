@@ -32,3 +32,14 @@ export const WHATSAPP_CONFIG = {
     qrTimeout: 120000, // 2 minutos
     maxImageSize: 2 // MB
 };
+
+/* export const ENV = process.env.NODE_ENV || 'development';
+
+export const IS_DEV = ENV === 'development';
+export const IS_PROD = ENV === 'production'; */
+
+/* export const API_URL = process.env.API_URL;
+
+if(!API_URL){
+  throw new Error('API_URL no está definida');
+} */
